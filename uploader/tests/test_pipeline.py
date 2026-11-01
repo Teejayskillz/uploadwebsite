@@ -1,4 +1,10 @@
-"""End-to-end pipeline tests with the network and ffmpeg stubbed out."""
+"""
+End-to-end pipeline tests with the network and FFmpeg stubbed out.
+
+Everything here is hermetic: no DNS, no sockets, no real binaries. The media
+functions are faked so these assertions hold identically on a laptop without
+FFmpeg and on the server with it.
+"""
 
 from __future__ import annotations
 
@@ -17,13 +23,17 @@ from uploader.tests.support import make_scratch_dir, remove_scratch_dir
 MP4_HEAD = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 2048
 
 
-class PipelineTests(TestCase):
+class PipelineTestBase(TestCase):
+    tooling_enabled = False
+
     def setUp(self):
         self.root = make_scratch_dir()
         self.addCleanup(remove_scratch_dir, self.root)
         self.overrides = override_settings(
             VIDEO_ROOT=str(self.root / "videos"),
             TEMP_ROOT=str(self.root / "tmp"),
+            THUMBNAIL_SUBDIR="thumbs",
+            MEDIA_TOOLING_REQUIRED=False,
         )
         self.overrides.enable()
         self.addCleanup(self.overrides.disable)
@@ -53,6 +63,14 @@ class PipelineTests(TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
+        tooling = mock.patch.object(
+            pipeline.media,
+            "tooling_available",
+            side_effect=lambda: type(self).tooling_enabled,
+        )
+        tooling.start()
+        self.addCleanup(tooling.stop)
+
     def _fake_fetch(self, body: bytes = MP4_HEAD, container: str = "mp4"):
         def _fetch(target, destination, **kwargs):
             destination = Path(destination)
@@ -72,24 +90,32 @@ class PipelineTests(TestCase):
 
         return _fetch
 
-    def _run(self, *, source_url="https://example.com/Extraction-3-2026-nkiri.com.mkv",
-             title="Extraction 3", mode=ImportJob.FilenameMode.AUTO, body=MP4_HEAD,
-             container="mp4"):
-        job = queue.enqueue_import(
-            source_url=source_url, title_hint=title, filename_mode=mode
-        )
+    def _run(
+        self,
+        *,
+        source_url="https://example.com/Extraction-3-2026-nkiri.com.mkv",
+        title="Extraction 3",
+        mode=ImportJob.FilenameMode.AUTO,
+        body=MP4_HEAD,
+        container="mp4",
+    ):
+        job = queue.enqueue_import(source_url=source_url, title_hint=title, filename_mode=mode)
         claimed = queue.claim_next_job()
         assert claimed.pk == job.pk
-        with mock.patch.object(pipeline, "fetch_to_file", side_effect=self._fake_fetch(body, container)):
+        with mock.patch.object(
+            pipeline, "fetch_to_file", side_effect=self._fake_fetch(body, container)
+        ):
             pipeline.process_job(claimed)
         claimed.refresh_from_db()
         return claimed
 
+
+class PipelineTests(PipelineTestBase):
+    """Storage path with media tooling unavailable (the graceful-degradation case)."""
+
     def test_happy_path_stores_a_branded_file(self):
         job = self._run()
         self.assertEqual(job.status, ImportJob.Status.COMPLETED)
-        self.assertIsNotNone(job.video)
-
         video = job.video
         self.assertEqual(video.stored_filename, "extraction-3-2026 | NZDWorld.com.mp4")
         self.assertEqual(video.extension, "mp4")
@@ -100,7 +126,6 @@ class PipelineTests(TestCase):
         stored = self.root / "videos" / video.relative_path
         self.assertTrue(stored.exists())
         self.assertEqual(stored.read_bytes(), MP4_HEAD)
-        # The partial file must not survive a successful import.
         self.assertFalse((self.root / "tmp" / f"{job.public_id}.part").exists())
 
     def test_relative_path_is_year_month_partitioned(self):
@@ -108,7 +133,6 @@ class PipelineTests(TestCase):
         self.assertRegex(job.video.relative_path, r"^\d{4}/\d{2}/")
 
     def test_partial_extension_is_taken_from_content_not_the_url(self):
-        """A .mkv URL serving MP4 must be stored as .mp4."""
         job = self._run(container="mp4")
         self.assertTrue(job.video.stored_filename.endswith(".mp4"))
 
@@ -123,7 +147,6 @@ class PipelineTests(TestCase):
                 pipeline.process_job(second)
         self.assertEqual(ctx.exception.code, "duplicate_content")
         second.refresh_from_db()
-        # The duplicate must not create a second Video row.
         self.assertEqual(Video.objects.count(), 1)
         self.assertEqual(first.video_id, Video.objects.first().pk)
 
@@ -141,7 +164,6 @@ class PipelineTests(TestCase):
         self.assertEqual(job.video.stored_filename, "my-custom-name-2025 | NZDWorld.com.mp4")
 
     def test_two_imports_do_not_overwrite_each_other(self):
-        # Different bytes -> different sha -> both stored.
         first = self._run(body=MP4_HEAD)
         second = self._run(
             source_url="https://example.com/second.mkv",
@@ -149,7 +171,7 @@ class PipelineTests(TestCase):
             body=MP4_HEAD + b"different",
         )
         self.assertNotEqual(first.video.relative_path, second.video.relative_path)
-        self.assertFalse(first.video.stored_filename == second.video.stored_filename)
+        self.assertNotEqual(first.video.stored_filename, second.video.stored_filename)
         self.assertEqual(Video.objects.count(), 2)
 
     def test_provider_jobs_are_refused_while_the_adapter_is_disabled(self):
@@ -176,19 +198,134 @@ class PipelineTests(TestCase):
                 fetch.assert_not_called()
 
     def test_unsafe_url_is_refused(self):
-        with mock.patch.object(
-            pipeline, "validate_url", side_effect=__import__(
-                "uploader.services.netguard", fromlist=["UnsafeURLError"]
-            ).UnsafeURLError("blocked")
-        ):
+        from uploader.services.netguard import UnsafeURLError
+
+        with mock.patch.object(pipeline, "validate_url", side_effect=UnsafeURLError("blocked")):
             job = queue.enqueue_import(source_url="https://example.com/unsafe.mkv")
             queue.claim_next_job()
             with self.assertRaises(pipeline.PipelineError) as ctx:
                 pipeline.process_job(job)
             self.assertEqual(ctx.exception.code, "unsafe_url")
 
+    def test_missing_tooling_with_required_flag_fails_the_job(self):
+        with override_settings(MEDIA_TOOLING_REQUIRED=True):
+            job = queue.enqueue_import(
+                source_url="https://example.com/notooling.mkv", title_hint="No tooling"
+            )
+            queue.claim_next_job()
+            with mock.patch.object(pipeline, "fetch_to_file", side_effect=self._fake_fetch()):
+                with self.assertRaises(pipeline.PipelineError) as ctx:
+                    pipeline.process_job(job)
+        self.assertEqual(ctx.exception.code, "tooling_missing")
+
     def test_storage_report_counts_stored_bytes(self):
         self._run()
         report = pipeline.storage_report()
         self.assertEqual(report["used_bytes"], len(MP4_HEAD))
         self.assertGreaterEqual(report["budget_bytes"], 0)
+
+
+class MetadataPipelineTests(PipelineTestBase):
+    """The metadata path, with every media function faked."""
+
+    tooling_enabled = True
+
+    def setUp(self):
+        super().setUp()
+        self.probe_result = pipeline.media.ProbeResult(
+            path="probe",
+            size_bytes=len(MP4_HEAD),
+            duration=2.0,
+            width=320,
+            height=240,
+            frame_rate=25.0,
+            video_codec="h264",
+            audio_codec="aac",
+            container="mov,mp4,m4a,3gp,3g2,mj2",
+            tags={},
+            streams=[{"codec_type": "video", "codec_name": "h264", "width": 320, "height": 240}],
+        )
+
+        probe = mock.patch.object(pipeline.media, "probe", return_value=self.probe_result)
+        probe.start()
+        self.addCleanup(probe.stop)
+
+        self.embed_result = pipeline.media.EmbedResult(
+            path="embedded",
+            probe=self.probe_result,
+            requested={"title": "Extraction 3 | NZDWorld.com"},
+            written={"title": "Extraction 3 | NZDWorld.com"},
+            unsupported=[],
+            mismatches=[],
+        )
+
+        def fake_embed(source, destination, fields, **kwargs):
+            destination = Path(destination)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(MP4_HEAD)
+            return self.embed_result
+
+        embed = mock.patch.object(pipeline.media, "embed_metadata", side_effect=fake_embed)
+        embed.start()
+        self.addCleanup(embed.stop)
+
+        def fake_thumb(source, destination, **kwargs):
+            destination = Path(destination)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(b"\xff\xd8fake-jpeg")
+            return pipeline.media.ThumbResult(path=str(destination), at_seconds=1.0, width=640)
+
+        thumb = mock.patch.object(pipeline.media, "make_thumbnail", side_effect=fake_thumb)
+        thumb.start()
+        self.addCleanup(thumb.stop)
+
+    def test_metadata_is_embedded_and_probe_data_is_stored(self):
+        job = self._run()
+        video = job.video
+        self.assertEqual(video.metadata_status, Video.MetadataStatus.EMBEDDED)
+        self.assertEqual(video.duration_seconds, 2.0)
+        self.assertEqual((video.width, video.height), (320, 240))
+        self.assertEqual(video.video_codec, "h264")
+        self.assertEqual(video.frame_rate, 25.0)
+        self.assertIsNotNone(video.metadata_embedded_at)
+        self.assertIn("title", video.metadata_fields["requested"])
+
+    def test_thumbnail_is_recorded_with_its_timestamp(self):
+        job = self._run()
+        self.assertTrue(job.video.thumbnail_path.startswith("thumbs/"))
+        self.assertEqual(job.video.thumbnail_at_seconds, 1.0)
+        self.assertTrue((self.root / "videos" / job.video.thumbnail_path).exists())
+
+    def test_unsupported_tags_mark_the_video_partial(self):
+        self.embed_result = pipeline.media.EmbedResult(
+            path="partial",
+            probe=self.probe_result,
+            requested={"title": "t", "artist": "NZDWorld.com"},
+            written={"title": "t"},
+            unsupported=["artist"],
+            mismatches=[],
+        )
+        job = self._run()
+        self.assertEqual(job.video.metadata_status, Video.MetadataStatus.PARTIAL)
+        self.assertEqual(job.video.metadata_fields["unsupported"], ["artist"])
+
+    def test_stream_mismatch_fails_the_job_and_keeps_nothing(self):
+        self.embed_result = pipeline.media.EmbedResult(
+            path="broken",
+            probe=self.probe_result,
+            requested={"title": "x"},
+            written={},
+            unsupported=[],
+            mismatches=["video codec h264 -> hevc"],
+        )
+        with override_settings(MEDIA_TOOLING_REQUIRED=True):
+            job = queue.enqueue_import(
+                source_url="https://example.com/mismatch.mkv", title_hint="Mismatch"
+            )
+            queue.claim_next_job()
+            with mock.patch.object(pipeline, "fetch_to_file", side_effect=self._fake_fetch()):
+                with self.assertRaises(pipeline.PipelineError) as ctx:
+                    pipeline.process_job(job)
+        self.assertEqual(ctx.exception.code, "stream_mismatch")
+        self.assertEqual(Video.objects.count(), 0)
+        self.assertEqual(list((self.root / "tmp").glob("*.part")), [])

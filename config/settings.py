@@ -262,11 +262,15 @@ UPLOADER = {
 FFMPEG_BINARY = env("FFMPEG_BINARY", "/home/jaraflix/bin/ffmpeg")
 FFPROBE_BINARY = env("FFPROBE_BINARY", "/home/jaraflix/bin/ffprobe")
 
-# When True an import fails if FFmpeg/FFprobe cannot run. Production should set
-# this True: silently storing un-branded files is worse than a visible failure.
-# It defaults to False while running the test suite so tests pass on machines
-# without FFmpeg; .env.example sets it explicitly for production.
-MEDIA_TOOLING_REQUIRED = env_bool("MEDIA_TOOLING_REQUIRED", not RUNNING_TESTS)
+# When True an import fails if FFmpeg/FFprobe cannot run. Production sets it
+# True: silently storing un-branded files is worse than a visible failure.
+#
+# During the test suite this is forced False *regardless of .env*. Tests must be
+# hermetic: a machine with FFmpeg, a production .env and no FFmpeg must run the
+# same suite and get the same result. (This was a real bug: the server's
+# MEDIA_TOOLING_REQUIRED=True made the pipeline tests call real ffprobe on fake
+# bytes and fail, while the same tests passed locally.)
+MEDIA_TOOLING_REQUIRED = False if RUNNING_TESTS else env_bool("MEDIA_TOOLING_REQUIRED", True)
 
 # Hard limits so one corrupt file cannot occupy a cron worker indefinitely.
 FFPROBE_TIMEOUT_SECONDS = env_int("FFPROBE_TIMEOUT_SECONDS", 60)
