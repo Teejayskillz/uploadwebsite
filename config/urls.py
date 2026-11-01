@@ -1,21 +1,22 @@
 """URL routes for the storage / uploader service.
 
-Only three surfaces exist today, and all three are deliberately small:
+Public surface is deliberately tiny:
 
 * ``/healthz`` ............ liveness for the hosting/monitoring layer
-* ``/d/<id>/`` ............ public download page (added in Phase 5)
-* ``/api/v1/...`` ......... HMAC-authenticated blog API (added in Phase 2/3)
+* ``/api/v1/...`` ......... HMAC-authenticated blog API
+* ``/admin/`` ............. staff-only administration
 
-The download gateway (``/dl/<token>/``) and the staff dashboard are mounted in
-later phases; keeping the URLconf minimal now makes it obvious what is exposed.
+The download gateway (``/d/<public_id>/`` and ``/dl/<token>/``) arrives in
+Phase 5; keeping this file minimal makes the exposed surface obvious.
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 
 from uploader import views
 
 urlpatterns = [
     path("healthz", views.healthz, name="healthz"),
+    path("api/v1/", include("uploader.api_urls")),
     path("admin/", admin.site.urls),
 ]
