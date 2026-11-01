@@ -287,6 +287,22 @@ ALLOW_TRANSCODE = env_bool("ALLOW_TRANSCODE", False)
 TRANSCODE_CRF = env_int("TRANSCODE_CRF", 20)
 TRANSCODE_PRESET = env("TRANSCODE_PRESET", "veryfast")
 
+# ---------------------------------------------------------------------------
+# Delivery and premium
+# ---------------------------------------------------------------------------
+SITE_NAME = env("SITE_NAME", "NZDWorld")
+
+# "django" streams through the app with full Range support (the default, and the
+# only mode verified on this host). "litespeed" emits X-LiteSpeed-Location and is
+# OFF unless LITESPEED_INTERNAL_REDIRECT is explicitly True, because that
+# mechanism is unproven under the Python SAPI on shared LiteSpeed hosting.
+DELIVERY_MODE = env("DELIVERY_MODE", "django")
+LITESPEED_INTERNAL_REDIRECT = env_bool("LITESPEED_INTERNAL_REDIRECT", False)
+
+# Blog-issued premium handoff (URL) and the uploader's own session cookie.
+PREMIUM_HANDOFF_MAX_AGE_SECONDS = env_int("PREMIUM_HANDOFF_MAX_AGE_SECONDS", 300)
+PREMIUM_SESSION_TTL_SECONDS = env_int("PREMIUM_SESSION_TTL_SECONDS", 1800)
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True

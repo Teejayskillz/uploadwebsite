@@ -509,7 +509,14 @@ class DownloadEvent(models.Model):
         on_delete=models.SET_NULL,
         related_name="events",
     )
-    video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name="events")
+    video = models.ForeignKey(
+        Video,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="events",
+        help_text="Null only for an invalid token that could not be traced to a video.",
+    )
     kind = models.CharField(max_length=20, choices=Kind.choices, db_index=True)
     bytes_count = models.BigIntegerField(default=0)
     is_range_request = models.BooleanField(default=False)

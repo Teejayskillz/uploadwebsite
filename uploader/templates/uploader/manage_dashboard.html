@@ -1,0 +1,116 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storage — NZDWorld uploader</title>
+<style>
+ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#f6f7f9;color:#111827}
+ .wrap{max-width:1100px;margin:0 auto;padding:20px}
+ h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;margin:22px 0 8px;color:#374151;text-transform:uppercase;letter-spacing:.04em}
+ .muted{color:#6b7280;font-size:13px}
+ .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:14px}
+ .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px}
+ .card .n{font-size:20px;font-weight:700} .card .l{font-size:12px;color:#6b7280}
+ .bar{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-top:8px}
+ .bar>i{display:block;height:100%;background:#0f766e}
+ .warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:10px 12px;border-radius:8px;font-size:13px;margin-top:12px}
+ table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:13px}
+ th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #f0f0f0;vertical-align:top}
+ th{background:#fafafa;font-weight:600;color:#374151}
+ tr:last-child td{border-bottom:0}
+ .tag{display:inline-block;padding:2px 7px;border-radius:99px;background:#eef2ff;color:#3730a3;font-size:11px}
+ .del{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer}
+ .btn{background:#0f766e;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer}
+ form.inline{display:inline}
+ .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+</style></head><body><div class="wrap">
+
+<div class="row">
+  <div>
+    <h1>Storage &amp; queue</h1>
+    <div class="muted">{{ now|date:"Y-m-d H:i" }} · {{ stats.video_count }} videos · <a href="{% url 'manage_analytics' %}">analytics →</a></div>
+  </div>
+  <div class="row">
+    <form class="inline" method="post" action="{% url 'manage_toggle_ads' %}">{% csrf_token %}
+      <button class="btn" type="submit">Ads: {% if ads_enabled %}ON{% else %}OFF{% endif %}</button>
+    </form>
+    <form class="inline" method="post" action="{% url 'manage_cleanup_partials' %}">{% csrf_token %}
+      <button class="btn" type="submit">Clean partials ({{ stats.partial_count }})</button>
+    </form>
+  </div>
+</div>
+
+{% if stats.low_storage %}
+  <div class="warn"><strong>Low storage.</strong> {{ stats.used_percent }}% of budget used; {{ stats.free_bytes }} bytes free.</div>
+{% endif %}
+
+<div class="cards">
+  <div class="card"><div class="n">{{ stats.used_percent }}%</div><div class="l">of {{ stats.budget_bytes|filesizeformat }} budget</div>
+    <div class="bar"><i style="width:{{ stats.used_percent }}%"></i></div></div>
+  <div class="card"><div class="n">{{ stats.free_bytes|filesizeformat }}</div><div class="l">free on volume</div></div>
+  <div class="card"><div class="n">{{ stats.total_video_bytes|filesizeformat }}</div><div class="l">stored videos</div></div>
+  <div class="card"><div class="n">{{ stats.video_count }}</div><div class="l">videos</div></div>
+  <div class="card"><div class="n">{{ stats.orphan_count }}</div><div class="l">orphan files ({{ stats.orphan_bytes|filesizeformat }})</div></div>
+</div>
+
+<h2>Largest videos</h2>
+<table>
+  <tr><th>File</th><th>Size</th><th>Status</th><th>Created</th><th></th></tr>
+  {% for v in stats.largest %}
+  <tr>
+    <td>{{ v.stored_filename }}<div class="muted">{{ v.public_id }}</div></td>
+    <td>{{ v.size_bytes|filesizeformat }}</td>
+    <td><span class="tag">{{ v.status }}</span></td>
+    <td>{{ v.created_at|date:"Y-m-d" }}</td>
+    <td><form class="inline" method="post" action="{% url 'manage_delete_video' public_id=v.public_id %}"
+              onsubmit="return confirm('Delete {{ v.stored_filename|escapejs }}? The file is removed permanently.');">
+        {% csrf_token %}<button class="del" type="submit">Delete</button></form></td>
+  </tr>
+  {% empty %}<tr><td colspan="5" class="muted">No videos stored yet.</td></tr>{% endfor %}
+</table>
+
+<h2>Recent imports</h2>
+<table>
+  <tr><th>Job</th><th>Status</th><th>File</th><th>Progress</th><th>Error</th><th></th></tr>
+  {% for j in recent_jobs %}
+  <tr>
+    <td>{{ j.public_id|slice:":8" }}</td>
+    <td><span class="tag">{{ j.status }}</span></td>
+    <td>{{ j.final_filename|default:"—" }}</td>
+    <td>{{ j.progress_percent }}%</td>
+    <td>{% if j.error_code %}{{ j.error_code }}: {{ j.error_message|truncatechars:60 }}{% else %}—{% endif %}</td>
+    <td>{% if j.status == "failed" or j.status == "cancelled" %}
+      <form class="inline" method="post" action="{% url 'manage_retry_job' public_id=j.public_id %}">{% csrf_token %}
+        <button class="btn" type="submit">Retry</button></form>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6" class="muted">No imports yet.</td></tr>{% endfor %}
+</table>
+
+<h2>Orphan files <span class="muted">(on disk, not referenced by any video)</span></h2>
+<table>
+  <tr><th>Path</th><th>Size</th><th></th></tr>
+  {% for o in orphans %}
+  <tr><td>{{ o.relative }}</td><td>{{ o.size_bytes|filesizeformat }}</td>
+    <td><form class="inline" method="post" action="{% url 'manage_delete_orphan' %}"
+              onsubmit="return confirm('Delete {{ o.relative|escapejs }}?');">
+        {% csrf_token %}<input type="hidden" name="relative" value="{{ o.relative }}">
+        <button class="del" type="submit">Delete</button></form></td></tr>
+  {% empty %}<tr><td colspan="3" class="muted">None found.</td></tr>{% endfor %}
+</table>
+
+<h2>Duplicate files (SHA-256)</h2>
+<table>
+  <tr><th>SHA-256</th><th>Copies</th><th>Total size</th></tr>
+  {% for d in duplicates %}
+  <tr><td><code>{{ d.sha256|slice:":20" }}…</code></td><td>{{ d.count }}</td><td>{{ d.size|filesizeformat }}</td></tr>
+  {% empty %}<tr><td colspan="3" class="muted">No duplicates.</td></tr>{% endfor %}
+</table>
+
+<h2>Integrity</h2>
+<table>
+  <tr><th>Video</th><th>Problem</th></tr>
+  {% for v in missing %}
+  <tr><td>{{ v.stored_filename }}</td><td class="muted">file missing on disk ({{ v.relative_path }})</td></tr>
+  {% empty %}<tr><td colspan="2" class="muted">All stored videos have their files.</td></tr>{% endfor %}
+</table>
+
+</div></body></html>

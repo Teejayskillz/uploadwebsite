@@ -1,0 +1,68 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analytics — NZDWorld uploader</title>
+<style>
+ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#f6f7f9;color:#111827}
+ .wrap{max-width:1000px;margin:0 auto;padding:20px}
+ h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;margin:22px 0 8px;color:#374151;text-transform:uppercase;letter-spacing:.04em}
+ .muted{color:#6b7280;font-size:13px}
+ .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
+ .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px}
+ .card .n{font-size:20px;font-weight:700} .card .l{font-size:12px;color:#6b7280}
+ table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:13px;margin-top:6px}
+ th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #f0f0f0}
+ th{background:#fafafa;font-weight:600;color:#374151}
+ tr:last-child td{border-bottom:0}
+ .tag{display:inline-block;padding:2px 7px;border-radius:99px;background:#eef2ff;color:#3730a3;font-size:11px}
+</style></head><body><div class="wrap">
+
+<div class="row"><div>
+<h1>Download analytics</h1>
+<div class="muted">Last 30 days plus lifetime totals · <a href="{% url 'manage_dashboard' %}">← storage</a></div>
+</div></div>
+
+<div class="cards">
+  <div class="card"><div class="n">{{ totals.sessions }}</div><div class="l">download sessions</div></div>
+  <div class="card"><div class="n">{{ totals.completed }}</div><div class="l">completed</div></div>
+  <div class="card"><div class="n">{{ conversion }}%</div><div class="l">completion rate</div></div>
+  <div class="card"><div class="n">{{ totals.premium_sessions }}</div><div class="l">premium sessions</div></div>
+  <div class="card"><div class="n">{{ totals.free_sessions }}</div><div class="l">free sessions</div></div>
+  <div class="card"><div class="n">{{ totals.bytes_served|filesizeformat }}</div><div class="l">bandwidth served</div></div>
+  <div class="card"><div class="n">{{ totals.range_requests }}</div><div class="l">range requests (resumes)</div></div>
+  <div class="card"><div class="n">{{ totals.failed }}</div><div class="l">failed sessions</div></div>
+</div>
+
+<h2>Daily sessions (30 days)</h2>
+<table>
+  <tr><th>Day</th><th>Sessions</th><th>Completed</th></tr>
+  {% for row in daily %}
+  <tr><td>{{ row.day }}</td><td>{{ row.total }}</td><td>{{ row.done }}</td></tr>
+  {% empty %}<tr><td colspan="3" class="muted">No sessions yet.</td></tr>{% endfor %}
+</table>
+
+<h2>Monthly sessions (last 6)</h2>
+<table>
+  <tr><th>Month</th><th>Sessions</th></tr>
+  {% for row in monthly %}<tr><td>{{ row.month|date:"Y-m" }}</td><td>{{ row.total }}</td></tr>
+  {% empty %}<tr><td colspan="2" class="muted">No sessions yet.</td></tr>{% endfor %}
+</table>
+
+<h2>Popular videos</h2>
+<table>
+  <tr><th>File</th><th>Completed downloads</th><th>Bandwidth</th></tr>
+  {% for v in top_videos %}
+  <tr><td>{{ v.stored_filename }}</td><td>{{ v.download_count }}</td><td>{{ v.bytes_served|default:0|filesizeformat }}</td></tr>
+  {% empty %}<tr><td colspan="3" class="muted">No downloads recorded yet.</td></tr>{% endfor %}
+</table>
+
+<h2>Recent delivery problems</h2>
+<table>
+  <tr><th>Kind</th><th>Video</th><th>Detail</th><th>When</th></tr>
+  {% for e in errors %}
+  <tr><td><span class="tag">{{ e.kind }}</span></td><td>{{ e.video.stored_filename|default:"—" }}</td>
+      <td>{{ e.detail|default:"—"|truncatechars:60 }}</td><td>{{ e.created_at|date:"Y-m-d H:i" }}</td></tr>
+  {% empty %}<tr><td colspan="4" class="muted">No problems recorded.</td></tr>{% endfor %}
+</table>
+
+</div></body></html>
