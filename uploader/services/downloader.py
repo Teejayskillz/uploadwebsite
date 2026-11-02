@@ -158,12 +158,15 @@ class _SocketResponse:
 def open_http(
     validated: ValidatedURL,
     *,
+    method: str = "GET",
     connect_timeout: float = 15.0,
     read_timeout: float = 60.0,
     extra_headers: dict[str, str] | None = None,
 ) -> Response:
     """
-    Open a GET against the validated IP, keeping the real host for Host/SNI.
+    Open a request against the validated IP, keeping the real host for Host/SNI.
+
+    ``method`` defaults to GET (the importer); the URL checker uses HEAD.
     """
     ip = validated.addresses[0]
     try:
@@ -193,7 +196,7 @@ def open_http(
         host_header = f"{validated.host}:{validated.port}"
 
     try:
-        connection.putrequest("GET", target, skip_host=True, skip_accept_encoding=True)
+        connection.putrequest(method.upper(), target, skip_host=True, skip_accept_encoding=True)
         connection.putheader("Host", host_header)
         connection.putheader("User-Agent", USER_AGENT)
         connection.putheader("Accept", "video/*,application/octet-stream;q=0.9,*/*;q=0.5")

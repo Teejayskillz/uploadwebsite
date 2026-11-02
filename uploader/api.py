@@ -266,3 +266,27 @@ def preview_filename(request):
         allowed_extensions=allowed_extensions(setting),
     )
     return JsonResponse(preview)
+
+@api_endpoint("import")
+def verify_url(request):
+    """
+    Lightweight accessibility check for the admin UI.
+
+    HEAD first, 2 KB ranged GET when the host refuses HEAD. Never downloads the
+    file; the importer re-validates everything when the job runs.
+    """
+    if request.method != "POST":
+        return _error("method_not_allowed", "POST only.", status=405)
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return _error("bad_json", str(exc))
+
+    target = str(payload.get("url") or "").strip()
+    if not target:
+        return _error("missing_url", "url is required.")
+
+    from uploader.services.urlcheck import verify_url as run_check
+
+    result = run_check(target)
+    return JsonResponse(result.as_dict())

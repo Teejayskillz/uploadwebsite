@@ -12,4 +12,5 @@ urlpatterns = [
     path("imports/<str:public_id>/cancel/", api.cancel_import, name="cancel_import"),
     path("imports/<str:public_id>/retry/", api.retry_import, name="retry_import"),
     path("filenames/preview/", api.preview_filename, name="preview_filename"),
+    path("urls/verify/", api.verify_url, name="verify_url"),
 ]
