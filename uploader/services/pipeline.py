@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import time
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -411,14 +412,43 @@ def process_job(job: ImportJob, *, worker_pid: int | None = None) -> ImportJob:
     return job
 
 
-def cleanup_partials() -> int:
-    """Remove orphaned ``*.part`` files left by an interrupted worker."""
+def cleanup_partials(min_age_seconds: int | None = None) -> int:
+    """
+    Remove *abandoned* ``*.part`` files — never one that is still being written.
+
+    Two safety rules, both learned from a real failure
+    (``missing_source`` on a large import):
+
+    1. a partial belonging to a job that is still active is never touched;
+    2. a partial modified within the staleness window is never touched.
+
+    Deleting blindly meant a second cron worker could erase the first worker's
+    in-progress download.
+    """
     temp_dir = Path(settings.TEMP_ROOT)
     if not temp_dir.exists():
         return 0
+
+    if min_age_seconds is None:
+        min_age_seconds = int(
+            getattr(settings, "UPLOADER", {}).get("WORKER_STALE_SECONDS", 600)
+        )
+    cutoff = time.time() - max(60, int(min_age_seconds))
+
+    active_ids = set(
+        ImportJob.objects.filter(status__in=ImportJob.ACTIVE_STATUSES).values_list(
+            "public_id", flat=True
+        )
+    )
+
     removed = 0
     for path in temp_dir.glob("*.part"):
+        job_id = path.stem.split(".")[0]
+        if job_id in active_ids:
+            continue
         try:
+            if path.stat().st_mtime > cutoff:
+                continue
             path.unlink()
             removed += 1
         except OSError:

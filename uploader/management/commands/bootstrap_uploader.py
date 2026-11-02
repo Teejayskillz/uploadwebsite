@@ -23,6 +23,8 @@ DEFAULT_FORMATS = ["mp4", "mkv", "webm", "mov", "m4v"]
 # Known source-site brands in this catalogue. Extend from the admin.
 DEFAULT_BRAND_TOKENS = [
     ("nkiri", "nkiri"),
+    ("thenkiri", "thenkiri"),
+    ("downloadwella", "downloadwella"),
     ("naijarocks", "naijarocks"),
     ("hypeblog9ja", "hypeblog9ja"),
     ("9jarocks", "9jarocks"),

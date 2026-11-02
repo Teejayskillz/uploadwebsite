@@ -52,12 +52,32 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from uploader.services.worker_lock import WorkerBusy, worker_lock
+
         started = time.monotonic()
         max_seconds = max(1, options["max_seconds"])
         max_jobs = max(1, options["max_jobs"])
         concurrency = options["concurrency"] or None
         worker_pid = os.getpid()
 
+        # One worker at a time. A download that outlives the cron budget must not
+        # be duplicated (and must not have its partial file cleaned up by the run
+        # that starts 60 seconds later).
+        try:
+            with worker_lock():
+                return self._run(
+                    started=started,
+                    max_seconds=max_seconds,
+                    max_jobs=max_jobs,
+                    concurrency=concurrency,
+                    worker_pid=worker_pid,
+                    options=options,
+                )
+        except WorkerBusy as exc:
+            self.stdout.write(f"skipped: {exc}")
+            return None
+
+    def _run(self, *, started, max_seconds, max_jobs, concurrency, worker_pid, options):
         if not options["skip_recovery"]:
             stale = queue.recover_stale_jobs()
             if stale:
@@ -69,7 +89,7 @@ class Command(BaseCommand):
 
         removed = pipeline.cleanup_partials()
         if removed:
-            self.stdout.write(f"removed {removed} orphaned partial file(s)")
+            self.stdout.write(f"removed {removed} abandoned partial file(s)")
 
         processed = 0
         while processed < max_jobs and (time.monotonic() - started) < max_seconds:
