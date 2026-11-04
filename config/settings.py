@@ -310,3 +310,8 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
+
+# The download page has its own identity: it never shows the blog's name or links
+# back to it. Set this only if you want a neutral label in the footer
+# (e.g. "MovieVault"); leave it empty to show nothing at all.
+DOWNLOAD_BRAND_NAME = env("DOWNLOAD_BRAND_NAME", "")

@@ -78,8 +78,8 @@ def download_page(request, public_id: str):
         "ads": {} if state.is_premium else _active_ads(),
         "size_label": human_size(video.size_bytes),
         "duration_label": human_duration(video.duration_seconds),
-        "site_name": getattr(settings, "SITE_NAME", "NZDWorld"),
-        "main_site_url": getattr(settings, "BLOG_API_BASE_URL", "https://nzdworld.com"),
+        # The public page has its own identity: no blog name, no link back.
+        "brand_name": getattr(settings, "DOWNLOAD_BRAND_NAME", ""),
         "token_ttl_minutes": int(SiteSetting.load().download_token_ttl_minutes or 30),
         "has_thumbnail": bool(video.thumbnail_path),
     }

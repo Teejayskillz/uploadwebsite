@@ -270,3 +270,38 @@ class DownloadPageTests(GatewayBase):
         Video.objects.filter(pk=self.video.pk).update(thumbnail_path="")
         missing = self.client.get(reverse("thumbnail", args=[self.video.public_id]))
         self.assertEqual(missing.status_code, 404)
+
+    def test_download_page_never_mentions_the_blog(self):
+        """The download page must have its own identity (client requirement)."""
+        response = self.client.get(reverse("download_page", args=[self.video.public_id]))
+        body = response.content.decode().lower()
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("nzdworld", body)
+        self.assertNotIn("jaraflix", body)
+        # Same for the <title>.
+        self.assertIn("extraction 3", body)
+        self.assertIn("download", body)
+
+    def test_premium_page_also_has_no_blog_branding(self):
+        token = signing.dumps({"sub": "42", "prem": True}, salt=premium.HANDOFF_SALT,
+                              key="handoff-secret")
+        response = self.client.get(
+            reverse("download_page", args=[self.video.public_id]) + f"?u={token}"
+        )
+        body = response.content.decode().lower()
+        self.assertIn("premium member", body)
+        self.assertNotIn("nzdworld", body)
+
+    def test_invalid_link_page_has_no_blog_branding(self):
+        response = self.client.get(reverse("download_file", args=["garbage"]))
+        body = response.content.decode().lower()
+        self.assertEqual(response.status_code, 410)
+        self.assertNotIn("nzdworld", body)
+
+    @override_settings(DOWNLOAD_BRAND_NAME="MovieVault")
+    def test_optional_neutral_brand_name_is_shown_when_configured(self):
+        body = self.client.get(
+            reverse("download_page", args=[self.video.public_id])
+        ).content.decode()
+        self.assertIn("MovieVault", body)
+        self.assertNotIn("NZDWorld", body)

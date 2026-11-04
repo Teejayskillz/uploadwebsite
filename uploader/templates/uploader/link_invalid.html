@@ -13,15 +13,15 @@
           max-width:460px; text-align:center; }
   h1 { font-size:20px; margin:0 0 10px; }
   p { color:#64748b; font-size:14px; line-height:1.5; margin:0 0 18px; }
-  a { display:inline-block; background:#0f766e; color:#fff; text-decoration:none;
-      border-radius:10px; padding:12px 20px; font-weight:600; }
+  button { display:inline-block; background:#0f766e; color:#fff; border:0; cursor:pointer;
+           border-radius:10px; padding:12px 20px; font-weight:600; font-size:14px; }
 </style>
 </head>
 <body>
   <div class="card">
     <h1>This download link is unavailable</h1>
     <p>{{ detail|default:"The link may have expired, been used already, or been copied incorrectly." }}</p>
-    <a href="https://nzdworld.com/">Back to NZDWorld</a>
+    <button type="button" onclick="history.length > 1 ? history.back() : window.close();">Go back</button>
   </div>
 </body>
 </html>

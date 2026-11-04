@@ -1,231 +1,99 @@
-{% load static %}
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex,nofollow">
-  <title>{{ video.title }} — <!--{{ site_name }} --> Download</title>
-  <style>
-    :root {
-      --fg: #0f172a;
-      --muted: #64748b;
-      --line: #e2e8f0;
-      --accent: #0f766e;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: var(--fg);
-      background: #f8fafc;
-    }
-
-    .wrap {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    .card {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 22px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
-    }
-
-    @media (min-width: 800px) {
-      .grid {
-        grid-template-columns: 220px 1fr;
-      }
-
-      .aside {
-        display: block;
-      }
-    }
-
-    h1 {
-      font-size: 22px;
-      margin: 0 0 6px;
-      line-height: 1.25;
-    }
-
-    .muted {
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .thumb {
-      width: 100%;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      display: block;
-    }
-
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 14px 0 18px;
-    }
-
-    .pill {
-      background: #f1f5f9;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 12px;
-      color: #334155;
-    }
-
-    .btn {
-      display: block;
-      width: 100%;
-      text-align: center;
-      background: var(--accent);
-      color: #fff;
-      border: 0;
-      border-radius: 10px;
-      padding: 16px;
-      font-size: 17px;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    .btn:hover {
-      filter: brightness(1.08);
-    }
-
-    .premium {
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
-      color: #065f46;
-      border-radius: 10px;
-      padding: 12px 14px;
-      font-size: 14px;
-      margin-bottom: 14px;
-    }
-
-    .ad {
-      border: 1px dashed var(--line);
-      border-radius: 10px;
-      padding: 10px;
-      margin: 14px 0;
-      min-height: 90px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      font-size: 13px;
-      overflow: hidden;
-    }
-
-    .ad-slot-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-
-    .notice {
-      background: #fffbeb;
-      border: 1px solid #fde68a;
-      color: #92400e;
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 13px;
-      margin-top: 14px;
-    }
-
-    footer {
-      text-align: center;
-      color: var(--muted);
-      font-size: 13px;
-      padding: 24px 0;
-    }
-
-    footer a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>{{ video.title }} — Download</title>
+<style>
+  :root { --fg:#0f172a; --muted:#64748b; --line:#e2e8f0; --accent:#0f766e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         color:var(--fg); background:#f8fafc; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 20px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:22px; }
+  .grid { display:grid; grid-template-columns: 1fr; gap:20px; }
+  @media (min-width: 800px) { .grid { grid-template-columns: 220px 1fr; } }
+  h1 { font-size: 22px; margin: 0 0 6px; line-height:1.25; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .thumb { width:100%; border-radius:10px; border:1px solid var(--line); display:block; }
+  .meta { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 18px; }
+  .pill { background:#f1f5f9; border:1px solid var(--line); border-radius:999px;
+          padding:4px 10px; font-size:12px; color:#334155; }
+  .btn { display:block; width:100%; text-align:center; background:var(--accent); color:#fff;
+         border:0; border-radius:10px; padding:16px; font-size:17px; font-weight:600;
+         cursor:pointer; text-decoration:none; }
+  .btn:hover { filter: brightness(1.08); }
+  .premium { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;
+             border-radius:10px; padding:12px 14px; font-size:14px; margin-bottom:14px; }
+  .ad { border:1px dashed var(--line); border-radius:10px; padding:10px; margin:14px 0;
+        min-height:90px; display:flex; align-items:center; justify-content:center;
+        color:var(--muted); font-size:13px; overflow:hidden; }
+  .notice { background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px;
+            padding:10px 12px; font-size:13px; margin-top:14px; }
+  footer { text-align:center; color:var(--muted); font-size:13px; padding:24px 0; }
+</style>
 </head>
-
 <body>
-  <div class="wrap">
+<div class="wrap">
 
-    {% for ad in ads.header %}
+  {% for ad in ads.header %}
     <div class="ad">{{ ad.html_code|safe }}</div>
-    {% endfor %}
+  {% endfor %}
 
-    <div class="card">
-      <div class="grid">
-        <div>
-          {% if has_thumbnail %}
+  <div class="card">
+    <div class="grid">
+      <div>
+        {% if has_thumbnail %}
           <img class="thumb" src="{% url 'thumbnail' public_id=video.public_id %}" alt="{{ video.title }}">
-          {% endif %}
+        {% endif %}
+      </div>
+      <div>
+        <h1>{{ video.title }}</h1>
+        <p class="muted">Your file is ready. Press the button below to start the download.</p>
+
+        <div class="meta">
+          <span class="pill">{{ size_label }}</span>
+          {% if duration_label %}<span class="pill">{{ duration_label }}</span>{% endif %}
+          {% if video.width and video.height %}<span class="pill">{{ video.width }}×{{ video.height }}</span>{% endif %}
+          <span class="pill">{{ video.extension|upper }}</span>
         </div>
-        <div>
-          <h1>{{ video.title }}</h1>
-          <!--      <p class="muted">Download the full movie file from {{ site_name }}.</p> -->
 
-          <div class="meta">
-            <span class="pill">{{ size_label }}</span>
-            {% if duration_label %}<span class="pill">{{ duration_label }}</span>{% endif %}
-            {% if video.width and video.height %}<span class="pill">{{ video.width }}×{{ video.height }}</span>{% endif
-            %}
-            <span class="pill">{{ video.extension|upper }}</span>
-          </div>
-
-          {% if is_premium %}
+        {% if is_premium %}
           <div class="premium">
             <strong>Premium member — ad-free download.</strong>
-            <!-- Your membership was verified by {{ site_name }}, so no adverts are shown.-->
+            Your membership was verified, so no adverts are shown.
           </div>
-          {% endif %}
+        {% endif %}
 
-          {% for ad in ads.above_button %}
+        {% for ad in ads.above_button %}
           <div class="ad">{{ ad.html_code|safe }}</div>
-          {% endfor %}
+        {% endfor %}
 
-          <form method="post" action="{% url 'start_download' public_id=video.public_id %}">
-            {% csrf_token %}
-            <button class="btn" type="submit">Download now</button>
-          </form>
+        <form method="post" action="{% url 'start_download' public_id=video.public_id %}">
+          {% csrf_token %}
+          <button class="btn" type="submit">Download now</button>
+        </form>
 
-          {% for ad in ads.below_button %}
+        {% for ad in ads.below_button %}
           <div class="ad">{{ ad.html_code|safe }}</div>
-          {% endfor %}
+        {% endfor %}
 
-          <div class="notice">
-            Your download link is valid for {{ token_ttl_minutes }} minutes. If it expires,
-            come back to this page for a fresh one.
-          </div>
+        <div class="notice">
+          Your download link is valid for {{ token_ttl_minutes }} minutes. If it expires,
+          come back to this page for a fresh one.
         </div>
       </div>
     </div>
-
-    {% for ad in ads.sidebar %}
-    <div class="ad">{{ ad.html_code|safe }}</div>
-    {% endfor %}
-
-    <footer>
-      <!--  <a href="{{ main_site_url }}">{{ site_name }}</a> — movies, series and sports.-->
-    </footer>
   </div>
-</body>
 
+  {% for ad in ads.sidebar %}
+    <div class="ad">{{ ad.html_code|safe }}</div>
+  {% endfor %}
+
+  <footer>
+    {% if brand_name %}{{ brand_name }} · {% endif %}Secure download
+  </footer>
+</div>
+</body>
 </html>
