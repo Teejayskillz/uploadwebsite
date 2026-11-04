@@ -6,7 +6,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>{{ video.title }} — {{ site_name }} Download</title>
+  <title>{{ video.title }} — <!--{{ site_name }} --> Download</title>
   <style>
     :root {
       --fg: #0f172a;
@@ -180,7 +180,7 @@
         </div>
         <div>
           <h1>{{ video.title }}</h1>
-          <p class="muted">Download the full movie file from {{ site_name }}.</p>
+          <!--      <p class="muted">Download the full movie file from {{ site_name }}.</p> -->
 
           <div class="meta">
             <span class="pill">{{ size_label }}</span>
@@ -193,7 +193,7 @@
           {% if is_premium %}
           <div class="premium">
             <strong>Premium member — ad-free download.</strong>
-            Your membership was verified by {{ site_name }}, so no adverts are shown.
+            <!-- Your membership was verified by {{ site_name }}, so no adverts are shown.-->
           </div>
           {% endif %}
 
